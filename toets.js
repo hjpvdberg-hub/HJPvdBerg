@@ -244,7 +244,13 @@ const REKEN_DEFAULTS = {
   parkeerPlek: 15000, margePct: 15,
 };
 const PARKEERNORM = { 1: 0.5, 2: 0.8, 3: 1.1, 4: 1.3, 5: 1.5 };
-function rekenInput() { return { ...REKEN_DEFAULTS, ...store.get('reken', {}) }; }
+function rekenInput(r) {
+  const d = { ...REKEN_DEFAULTS };
+  // Woninggrootte: regionaal kental uit gerealiseerde projecten (referenties.js) als de gebruiker niets heeft ingesteld.
+  const g = r && typeof refGbo === 'function' ? refGbo(r.c, r.nonResM2 >= 120 ? 'transf' : 'nieuw') : null;
+  if (g) { d.gboPerWoning = g; d.gboBron = 'regio'; }
+  return { ...d, ...store.get('reken', {}) };
+}
 
 function scenarios(r, inp) {
   const sted = r.buurt?.stedelijkheid ?? 3;
@@ -441,7 +447,7 @@ async function fetchBuren(r) {
 
 function niveau(cls, txt) { return `<span class="lvl ${cls}">${txt}</span>`; }
 function renderToets(r) {
-  const inp = rekenInput();
+  const inp = rekenInput(r);
   const sc = scenarios(r, inp);
   const o = r.omg || {};
   const h = r.hoogte || {};
@@ -535,9 +541,11 @@ function renderToets(r) {
       <a href="https://omgevingswet.overheid.nl/regels-op-de-kaart/zoeken/locatie?locatie=${ll}" target="_blank" rel="noopener">Regels op de kaart</a>
     </div>
 
+    ${typeof refToetsHtml === 'function' ? refToetsHtml(r) : ''}
+
     <h4>Scenario's en rekensom</h4>
     ${sc.list.length ? `<table class="scen"><tr><th>Scenario</th><th>Won.</th><th>Verkoop VON incl. btw<br><span class="muted">opbrengst excl. btw</span></th><th>Kosten excl. btw</th><th>Marge</th><th>Max. aankoop*</th></tr>${scenRows}</table>
-    <p class="muted">* Maximale aankoopprijs (excl. aankoopkosten) bij ${inp.margePct}% marge. Verkoop = nieuwe woningen × ${inp.gboPerWoning} m² × €${fmtNum(sc.verkoopM2)}/m² VON incl. ${inp.btwPct}% btw. Opbrengst (excl. btw) = verkoop ÷ ${fmtNum(1 + inp.btwPct / 100, 2)}, plus de waarde van bestaand vastgoed dat blijft staan. Alle kosten zijn excl. btw; marge en maximale aankoop zijn berekend op de opbrengst excl. btw.
+    <p class="muted">* Maximale aankoopprijs (excl. aankoopkosten) bij ${inp.margePct}% marge. Verkoop = nieuwe woningen × ${inp.gboPerWoning} m²${inp.gboBron === 'regio' && store.get('reken', {}).gboPerWoning == null ? ' (mediaan gerealiseerde projecten in de regio)' : ''} × €${fmtNum(sc.verkoopM2)}/m² VON incl. ${inp.btwPct}% btw. Opbrengst (excl. btw) = verkoop ÷ ${fmtNum(1 + inp.btwPct / 100, 2)}, plus de waarde van bestaand vastgoed dat blijft staan. Alle kosten zijn excl. btw; marge en maximale aankoop zijn berekend op de opbrengst excl. btw.
     Aankoop is geschat: niet-wonen × €${fmtNum(inp.aankoopNietWonenM2)}/m², bestaande woningen × buurtwaarde, onbebouwd × €${fmtNum(inp.aankoopGrondM2)}/m² (totaal €${fmtNum(sc.aankoop)}).</p>`
     : '<p class="muted">Geen scenario met minimaal 1 woning gevonden.</p>'}
     <details class="card"><summary><strong>Uitgangspunten aanpassen</strong></summary>

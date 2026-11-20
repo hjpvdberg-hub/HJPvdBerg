@@ -109,7 +109,8 @@ function potentie(r, strat) {
   const out = { transf: 0, optop: 0, inbr: 0, notes: [] };
   const sted = r.buurt?.stedelijkheid ?? 3;
   if (strat.transf && r.nonResM2 >= 120) {
-    out.transf = Math.floor(r.nonResM2 / KANS.m2PerWoning);
+    const gboT = (typeof refGbo === 'function' && refGbo(r.c, 'transf')) || KANS.m2PerWoning; // regionaal kental indien beschikbaar
+    out.transf = Math.floor(r.nonResM2 / gboT);
     if (out.transf) out.notes.push(`transformatie ${fmtNum(r.nonResM2)} m² niet-wonen → ±${out.transf} won.`);
   }
   if (strat.optop && r.d3 && !r.d3.fout && r.d3.footprint > 60) {
@@ -121,7 +122,8 @@ function potentie(r, strat) {
       extra = 1; bron = `${r.d3.lagen} lagen met plat dak in stedelijke buurt (aanname, toets aan plan)`;
     }
     if (extra > 0) {
-      out.optop = Math.floor((extra * r.d3.footprint * 0.8) / KANS.m2PerWoning);
+      const gboO = (typeof refGbo === 'function' && refGbo(r.c, 'nieuw')) || KANS.m2PerWoning;
+      out.optop = Math.floor((extra * r.d3.footprint * 0.8) / gboO);
       if (out.optop) out.notes.push(`optoppen +${extra} laag: ±${out.optop} won. (${bron})`);
     }
   }
@@ -229,8 +231,10 @@ function scoreParcel(r) {
   r.pot = potentie(r, strat);
   why.push(...r.pot.notes);
   const fys = fysiekScore(r.pot.totaal);
-  const jur = juridischScore(r, why);
-  const markt = marktScore(r, why);
+  // Precedent uit gerealiseerde projecten in de regio (referenties.js), alleen binnen het referentiegebied.
+  const prec = typeof refPrecedent === 'function' ? refPrecedent(r, why) : { jur: 0, markt: 0 };
+  const jur = clamp(juridischScore(r, why) + prec.jur);
+  const markt = clamp(marktScore(r, why) + prec.markt);
   const verw = verwervingScore(r, why);
   r.deel = { fys, jur, markt, verw };
   const sumW = (w.fys + w.jur + w.markt + w.verw) || 1;
