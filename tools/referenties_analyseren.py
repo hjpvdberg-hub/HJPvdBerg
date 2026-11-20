@@ -55,18 +55,33 @@ for k in keys:
                     parent[find(o)] = find(k)
 clusters = {}
 for k in keys: clusters.setdefault(find(k), []).append(k)
+# Woningen per nieuwbouwpand (voor de "onderdeel van grote wijk"-toets)
+pts = [(panden[k]['c'], panden[k]['bj'], len(pw[k]), k) for k in keys]
+pgrid = {}
+for c, bj, nw, k in pts: pgrid.setdefault((round(c[0] / 0.003), round(c[1] / 0.002)), []).append((c, bj, nw, k))
+def omgeving_nieuw(cx, cy, bj, eigen):
+    gx, gy = round(cx / 0.003), round(cy / 0.002); tot = 0
+    for dx in (-1, 0, 1):
+        for dy in (-1, 0, 1):
+            for c, b, nw, k in pgrid.get((gx + dx, gy + dy), []):
+                if k not in eigen and abs(b - bj) <= 2 and dist(c, (cx, cy)) <= 200: tot += nw
+    return tot
 projects = []
+uitgesloten_wijk = 0
 for ks in clusters.values():
     w = [v for k in ks for v in pw[k]]
     n = len(w)
     if n < 2 or n > 20: continue
+    cx0 = sum(panden[k]['c'][0] for k in ks) / len(ks); cy0 = sum(panden[k]['c'][1] for k in ks) / len(ks)
+    if omgeving_nieuw(cx0, cy0, max(panden[k]['bj'] for k in ks), set(ks)) > 20:
+        uitgesloten_wijk += 1; continue  # onderdeel van een grote nieuwbouwwijk, geen kleinschalig project
     app = any(len(pw[k]) >= 2 for k in ks)
     opp = [v['opp'] for v in w if v['opp']]
     cx = sum(panden[k]['c'][0] for k in ks) / len(ks); cy = sum(panden[k]['c'][1] for k in ks) / len(ks)
     projects.append({'t': 'nieuwbouw appartementen' if app else 'nieuwbouw grondgebonden', 'j': max(panden[k]['bj'] for k in ks), 'n': n,
                      'gbo': round(st.median(opp)) if opp else None, 'c': [round(cx, 6), round(cy, 6)], 'adres': w[0]['adres'], 'gm': w[0].get('gmn'),
                      'panden': [panden[k]['id'] for k in ks], 'grond': None})
-print('nieuwbouwprojecten 2-20', len(projects))
+print('nieuwbouwprojecten 2-20', len(projects), 'uitgesloten (deel van grote wijk)', uitgesloten_wijk)
 
 # --- transformatie / splitsing ---
 cand = [v for v in vbos if not any(p in panden for p in v['pand']) and INGEBRUIK(v['st']) and seq(v['id']) and gm(v['id']) in thr and seq(v['id']) > thr[gm(v['id'])]]
@@ -75,9 +90,12 @@ pids = sorted({v['pand'][0] for v in cand if v['pand']})
 def pinfo(uuid):
     d = get(f'https://api.pdok.nl/kadaster/bag/ogc/v2/collections/pand/items/{uuid}?f=json')
     return uuid, (d or {}).get('properties')
-pd = {}
+cachef = os.path.join(D, 'pandinfo.json')
+pd = json.load(open(cachef)) if os.path.exists(cachef) else {}
+todo = [u for u in pids if u not in pd]
 with cf.ThreadPoolExecutor(12) as ex:
-    for u, p in ex.map(pinfo, pids): pd[u] = p
+    for u, p in ex.map(pinfo, todo): pd[u] = p
+json.dump(pd, open(cachef, 'w'))
 oud = {u for u, p in pd.items() if p and p.get('bouwjaar') and p['bouwjaar'] <= 2015}
 # bestaande woningen per pand (voor splitsing vs transformatie)
 bestaand = {}
