@@ -8,15 +8,24 @@ def within(lon, lat):
     dx = (lon - C[0]) * 111320 * math.cos(math.radians(C[1])); dy = (lat - C[1]) * 110574
     return math.hypot(dx, dy) <= R
 BB = (5.40, 51.375, 5.98, 51.735)
-def get(url, tries=5):
+def get(url, tries=8):
     for i in range(tries):
         try:
-            with urllib.request.urlopen(urllib.request.Request(url, headers={'Accept': 'application/json'}), context=CTX, timeout=60) as r:
+            with urllib.request.urlopen(urllib.request.Request(url, headers={'Accept': 'application/json'}), context=CTX, timeout=90) as r:
                 return json.load(r)
         except Exception as e:
-            time.sleep(2 * (i + 1))
+            time.sleep(min(60, 3 * 2 ** i))
     raise RuntimeError('fail ' + url)
+CACHE = os.path.join(OUT, 'cache'); os.makedirs(CACHE, exist_ok=True)
 def fetch_all(url):
+    # Tussenresultaat per bevraging bewaren, zodat een herstart niet opnieuw begint.
+    import hashlib
+    fn = os.path.join(CACHE, hashlib.md5(url.encode()).hexdigest() + '.json')
+    if os.path.exists(fn): return json.load(open(fn))
+    out = _fetch_all(url)
+    json.dump(out, open(fn, 'w'))
+    return out
+def _fetch_all(url):
     out = []
     while url:
         d = get(url); out += d.get('features', [])
@@ -35,7 +44,7 @@ def job_p(args):
     y, t = args
     return fetch_all(f'{BAG}/pand/items?f=json&limit=1000&bouwjaar={y}&bbox={bbs(t)}')
 jobs = [(y, t) for y in range(2019, 2027) for t in tiles(3)]
-with cf.ThreadPoolExecutor(8) as ex:
+with cf.ThreadPoolExecutor(4) as ex:
     for fs in ex.map(job_p, jobs):
         for f in fs:
             p = f['properties']
@@ -50,7 +59,7 @@ json.dump(panden, open(os.path.join(OUT, 'panden_nieuw.json'), 'w'))
 vbos = []
 def job_v(t):
     return fetch_all(f'{BAG}/verblijfsobject/items?f=json&limit=1000&gebruiksdoel=woonfunctie&bbox={bbs(t)}')
-with cf.ThreadPoolExecutor(8) as ex:
+with cf.ThreadPoolExecutor(4) as ex:
     for k, fs in enumerate(ex.map(job_v, list(tiles(8)))):
         for f in fs:
             p = f['properties']; lon, lat = f['geometry']['coordinates'][:2]
