@@ -46,9 +46,15 @@ def bbs(t): return ','.join(f'{v:.5f}' for v in t)
 
 # 1. Nieuwe panden 2020-2026
 panden = {}
-def job_p(args):
+def job_p(args, depth=0):
     y, t = args
-    return fetch_all(f'{BAG}/pand/items?f=json&limit=1000&bouwjaar={y}&bbox={bbs(t)}')
+    try:
+        return fetch_all(f'{BAG}/pand/items?f=json&limit=1000&bouwjaar={y}&bbox={bbs(t)}')
+    except RuntimeError:
+        if depth >= 3: raise
+        # Vlak opdelen in vier kleinere stukken als PDOK blijft time-outen.
+        x0, y0, x1, y1 = t; mx, my = (x0 + x1) / 2, (y0 + y1) / 2
+        return [f for q in [(x0, y0, mx, my), (mx, y0, x1, my), (x0, my, mx, y1), (mx, my, x1, y1)] for f in job_p((y, q), depth + 1)]
 jobs = [(y, t) for y in range(2019, 2027) for t in tiles(3)]
 with cf.ThreadPoolExecutor(4) as ex:
     for fs in ex.map(job_p, jobs):
@@ -63,7 +69,14 @@ json.dump(panden, open(os.path.join(OUT, 'panden_nieuw.json'), 'w'))
 
 # 2. Alle woon-VBO's (gebruiksdoel bevat woonfunctie)
 vbos = []
-def job_v(t):
+def job_v(t, depth=0):
+    try:
+        return _job_v(t)
+    except RuntimeError:
+        if depth >= 3: raise
+        x0, y0, x1, y1 = t; mx, my = (x0 + x1) / 2, (y0 + y1) / 2
+        return [f for q in [(x0, y0, mx, my), (mx, y0, x1, my), (x0, my, mx, y1), (mx, my, x1, y1)] for f in job_v(q, depth + 1)]
+def _job_v(t):
     return fetch_all(f'{BAG}/verblijfsobject/items?f=json&limit=1000&gebruiksdoel=woonfunctie&bbox={bbs(t)}')
 with cf.ThreadPoolExecutor(4) as ex:
     for k, fs in enumerate(ex.map(job_v, list(tiles(8)))):
