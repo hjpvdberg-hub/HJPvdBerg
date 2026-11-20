@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Perceelkaart</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="search">
+      <input id="q" type="search" autocomplete="off" placeholder="Adres, postcode of perceel (bijv. Aalten K 1234)">
+      <ul id="suggest" class="suggest" hidden></ul>
+    </div>
+    <div class="tools">
+      <button id="btn-locate" title="Mijn locatie">⌖</button>
+      <button id="btn-measure-line" title="Afstand meten">📏</button>
+      <button id="btn-measure-area" title="Oppervlakte meten">▱</button>
+      <button id="btn-favs" title="Favorieten">★</button>
+      <button id="btn-layers" title="Kaartlagen">☰</button>
+    </div>
+  </header>
+
+  <div id="map"></div>
+
+  <aside id="layers" class="panel" hidden>
+    <h3>Achtergrond</h3>
+    <label><input type="radio" name="base" value="brt" checked> Topografisch</label>
+    <label><input type="radio" name="base" value="grijs"> Grijs</label>
+    <label><input type="radio" name="base" value="lucht"> Luchtfoto</label>
+    <h3>Lagen</h3>
+    <label><input type="checkbox" data-layer="kadaster" checked> Kadastrale grenzen</label>
+    <label><input type="checkbox" data-layer="bestemming"> Bestemmingsplan</label>
+    <label><input type="checkbox" data-layer="bouwvlak"> Bouwvlakken</label>
+    <label><input type="checkbox" data-layer="ahn_dsm"> Hoogte (AHN, oppervlak)</label>
+    <label><input type="checkbox" data-layer="ahn_dtm"> Hoogte (AHN, maaiveld)</label>
+    <label><input type="checkbox" data-layer="cultuur"> Beschermde gebieden (cultuurhistorie)</label>
+    <p class="muted">Kadastrale grenzen worden zichtbaar vanaf zoomniveau 16.</p>
+  </aside>
+
+  <aside id="favs" class="panel" hidden>
+    <h3>Favorieten</h3>
+    <ul id="fav-list"></ul>
+    <div class="row">
+      <button id="fav-export">Exporteer GeoJSON</button>
+    </div>
+  </aside>
+
+  <section id="info" class="sheet" hidden>
+    <div class="sheet-head">
+      <strong id="info-title">Informatie</strong>
+      <button id="info-close" title="Sluiten">✕</button>
+    </div>
+    <div id="info-body"></div>
+  </section>
+
+  <div id="measure-box" class="measure" hidden>
+    <span id="measure-out">Klik op de kaart om te meten</span>
+    <button id="measure-undo">Ongedaan</button>
+    <button id="measure-stop">Klaar</button>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
