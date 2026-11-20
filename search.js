@@ -64,12 +64,35 @@ const AN = { results: [], layer: L.layerGroup().addTo(map), area: null, drawPts:
     <div class="checks">${GEBRUIKSDOELEN.map((d) => `<label><input type="checkbox" class="f-doel" value="${d}"> ${d.replace('functie', '').replace(' gebruiks', '')}</label>`).join('')}</div>
     <label><input id="f-signaal" type="checkbox"> Alleen met BAG-signaal (buiten gebruik, sloop-/bouwvergunning, verbouwing)</label>
 
+    <h3>Strategie</h3>
+    <div class="checks">
+      <label><input type="checkbox" class="f-strat" value="transf" checked> transformatie</label>
+      <label><input type="checkbox" class="f-strat" value="optop" checked> optoppen</label>
+      <label><input type="checkbox" class="f-strat" value="inbr" checked> inbreiding</label>
+    </div>
+    <div class="grid2">
+      <label>Woningen min<input id="f-won-min" type="number" min="0" value="2"></label>
+      <label>Woningen max<input id="f-won-max" type="number" min="0" value="10"></label>
+    </div>
+    <label><input id="f-monument" type="checkbox" checked> Rijksmonumenten uitsluiten</label>
+    <label><input id="f-uitsluiten" type="checkbox" checked> Uitgesloten percelen verbergen (weg/water/groen, &gt;5 ha)</label>
+
+    <h3>Weging</h3>
+    <div class="weights">
+      <label>Fysiek <output id="w-fys-out"></output><input id="w-fys" type="range" min="0" max="100" step="5"></label>
+      <label>Juridisch <output id="w-jur-out"></output><input id="w-jur" type="range" min="0" max="100" step="5"></label>
+      <label>Markt <output id="w-markt-out"></output><input id="w-markt" type="range" min="0" max="100" step="5"></label>
+      <label>Verwerving <output id="w-verw-out"></output><input id="w-verw" type="range" min="0" max="100" step="5"></label>
+    </div>
+
     <h3>Score</h3>
-    <label>Minimale ontwikkelscore <output id="f-score-out">0</output>
+    <label>Minimale kansscore <output id="f-score-out">0</output>
       <input id="f-score" type="range" min="0" max="100" step="5" value="0">
     </label>
-    <p class="muted">Filters werken direct op de opgehaalde percelen. Opnieuw analyseren is alleen nodig voor een ander gebied.</p><label hidden>
+    <label>Sorteren op
+      <select id="f-sort"><option value="score">kansscore</option><option value="opbrengst">indicatieve opbrengst</option><option value="woningen">aantal woningen</option></select>
     </label>
+    <p class="muted">Filters en weging werken direct op de opgehaalde percelen. Opnieuw analyseren is alleen nodig voor een ander gebied.</p>
 
     <div class="row">
       <button id="an-run" class="primary">Analyseer</button>
@@ -78,17 +101,22 @@ const AN = { results: [], layer: L.layerGroup().addTo(map), area: null, drawPts:
     <p id="an-status" class="muted"></p>
 
     <div id="an-result-tools" class="row" hidden>
-      <button id="an-plan">Bestemming ophalen (top 100)</button>
+      <button id="an-3d" class="primary">Verdiepen top 60</button>
       <input id="f-bestemming" type="search" placeholder="filter bestemming, bijv. bedrijf" hidden>
       <button id="an-csv">CSV</button>
       <button id="an-geojson">GeoJSON</button>
     </div>
     <ol id="an-list" class="results"></ol>
     <details class="muted"><summary>Hoe werkt de score?</summary>
-      <p>Indicatief, 0–100. Punten voor: groot perceel, lage bebouwingsgraad, onbebouwd, oud pand,
-      alleen niet-woonfuncties (transformatiekans), veel grond per adres, en BAG-signalen
-      (buiten gebruik, sloopvergunning). Geen rekening gehouden met eigendom, monumentstatus, milieu of
-      bestemming (die laatste kun je apart ophalen). Gebruik het als zeef, niet als oordeel.</p>
+      <p><b>Woningpotentie</b>: transformatie = m² niet-wonen ÷ 65; optoppen = extra lagen × footprint × 0,8 ÷ 65
+      (alleen na <i>Verdiepen</i>; extra lagen uit de toegestane bouwhoogte als DSO-plandata er is, anders +1 laag
+      bij 1–2 lagen met plat dak in stedelijke buurt); inbreiding = vrije grond ÷ 110–220 m² per woning naar stedelijkheid.</p>
+      <p><b>Fysiek</b>: hoe goed de potentie past bij 2–10 woningen. <b>Juridisch</b>: bestemming, monument,
+      beschermd gezicht, plannen in ontwikkeling, vergunningen. <b>Markt</b>: gemiddelde woningwaarde (CBS),
+      stedelijkheid, afstand tot station en supermarkt. <b>Verwerving</b>: adressen per pand (VvE), leegstand,
+      bouwjaar, eigenaar al bezig.</p>
+      <p>Opbrengst = woningen × buurtwaarde × 0,8 (bruto verkoop, zeer indicatief). Eigendom, bodem, geluid,
+      parkeren en bouwkosten zitten er niet in. Gebruik het als zeef, niet als oordeel.</p>
     </details>`;
   document.body.appendChild(el);
 
@@ -99,8 +127,6 @@ const AN = { results: [], layer: L.layerGroup().addTo(map), area: null, drawPts:
   $('.tools').insertBefore(btn, $('#btn-layers'));
   btn.onclick = () => togglePanel('#analyse');
 
-  const saved = store.get('filters', null);
-  if (saved) applyFilterState(saved);
   $('#f-score').oninput = () => { $('#f-score-out').textContent = $('#f-score').value; };
   $('#f-score-out').textContent = $('#f-score').value;
   $('#an-run').onclick = runAnalysis;
@@ -110,7 +136,17 @@ const AN = { results: [], layer: L.layerGroup().addTo(map), area: null, drawPts:
   $('#an-area-clear').onclick = () => { clearDraw(); setAreaMode('view'); };
   $('#an-csv').onclick = exportCSV;
   $('#an-geojson').onclick = exportGeoJSON;
-  $('#an-plan').onclick = fetchPlans;
+  $('#an-3d').title = 'Haalt voor de 60 beste percelen gebouwhoogte (3D BAG), bestemming en – met API-sleutels – DSO-plandata op';
+  $('#an-3d').onclick = async () => {
+    $('#an-3d').disabled = true;
+    await verdiepAlles(AN.results.slice(0, 60), (t) => { $('#an-status').textContent = `Verdiepen… ${t}`; });
+    AN.all.forEach(scoreParcel);
+    $('#an-3d').disabled = false;
+    renderResults();
+  };
+  ['fys', 'jur', 'markt', 'verw'].forEach((k) => {
+    $('#w-' + k).addEventListener('input', () => { $('#w-' + k + '-out').textContent = $('#w-' + k).value; });
+  });
   $('#f-bestemming').oninput = () => renderResults();
   // Filters direct toepassen op de al opgehaalde gegevens.
   let t;
@@ -118,29 +154,40 @@ const AN = { results: [], layer: L.layerGroup().addTo(map), area: null, drawPts:
     if (inp.id === 'f-bestemming') return;
     inp.addEventListener(inp.type === 'number' ? 'input' : 'change', () => {
       clearTimeout(t);
-      t = setTimeout(() => { if (AN.all) { AN.filters = filterState(); store.set('filters', AN.filters); renderResults(); } }, 250);
+      t = setTimeout(() => { if (AN.all) { AN.filters = filterState(); store.set('filters', AN.filters); AN.all.forEach(scoreParcel); renderResults(); } }, 250);
     });
   });
 })();
 
 // ---------- Filters ----------
-const FIELDS = ['f-opp-min', 'f-opp-max', 'f-graad-max', 'f-gpa-min', 'f-bj-max', 'f-bj-min', 'f-adr-min', 'f-adr-max', 'f-bebouwd', 'f-doel-mode', 'f-score'];
+const FIELDS = ['f-opp-min', 'f-opp-max', 'f-graad-max', 'f-gpa-min', 'f-bj-max', 'f-bj-min', 'f-adr-min', 'f-adr-max', 'f-bebouwd', 'f-doel-mode', 'f-score', 'f-won-min', 'f-won-max', 'f-sort'];
+const FIELD_DEFAULTS = { 'f-doel-mode': 'any', 'f-score': '0', 'f-won-min': '2', 'f-won-max': '10', 'f-sort': 'score' };
 function filterState() {
   const s = {};
   FIELDS.forEach((id) => { s[id] = $('#' + id).value; });
   s.elong = $('#f-elong').checked;
   s.signaal = $('#f-signaal').checked;
   s.doelen = [...document.querySelectorAll('.f-doel:checked')].map((c) => c.value);
+  s.monument = $('#f-monument').checked;
+  s.uitsluiten = $('#f-uitsluiten').checked;
+  s.strat = Object.fromEntries([...document.querySelectorAll('.f-strat')].map((c) => [c.value, c.checked]));
+  s.w = { fys: +$('#w-fys').value, jur: +$('#w-jur').value, markt: +$('#w-markt').value, verw: +$('#w-verw').value };
   return s;
 }
 function applyFilterState(s) {
-  FIELDS.forEach((id) => { $('#' + id).value = s[id] ?? (id === 'f-doel-mode' ? 'any' : id === 'f-score' ? '0' : ''); });
+  FIELDS.forEach((id) => { $('#' + id).value = s[id] ?? FIELD_DEFAULTS[id] ?? ''; });
+  $('#f-monument').checked = s.monument ?? true;
+  $('#f-uitsluiten').checked = s.uitsluiten ?? true;
+  document.querySelectorAll('.f-strat').forEach((c) => { c.checked = s.strat?.[c.value] ?? true; });
+  const w = s.w || DEFAULT_W;
+  ['fys', 'jur', 'markt', 'verw'].forEach((k) => { $('#w-' + k).value = w[k]; $('#w-' + k + '-out').textContent = w[k]; });
   $('#f-elong').checked = s.elong ?? true;
   $('#f-signaal').checked = !!s.signaal;
   document.querySelectorAll('.f-doel').forEach((c) => { c.checked = (s.doelen || []).includes(c.value); });
   $('#f-score-out').textContent = $('#f-score').value;
 }
 const num = (v) => (v === '' || v == null ? null : Number(v));
+applyFilterState(store.get('filters', null) || {}); // na de definities hierboven (const FIELDS)
 
 function passes(r, s) {
   if (num(s['f-opp-min']) != null && r.opp < num(s['f-opp-min'])) return false;
@@ -161,6 +208,10 @@ function passes(r, s) {
     if (s['f-doel-mode'] === 'only' && (!r.doelen.size || [...r.doelen].some((d) => !s.doelen.includes(d)))) return false;
   }
   if (s.signaal && !r.signalen.size) return false;
+  if (s.uitsluiten && r.uitsluiting) return false;
+  if (s.monument && r.monument) return false;
+  if (num(s['f-won-min']) != null && r.pot.totaal < num(s['f-won-min'])) return false;
+  if (num(s['f-won-max']) != null && r.pot.totaal > num(s['f-won-max'])) return false;
   if (r.score < Number(s['f-score'] || 0)) return false;
   return true;
 }
@@ -311,7 +362,8 @@ async function runAnalysis() {
         aanduiding: `${p.kadastrale_gemeente_waarde} ${p.sectie} ${p.perceelnummer}`,
         opp: p.kadastrale_grootte_waarde || st.area, oppGeo: st.area, omtrek: st.perim,
         compact: st.perim ? (4 * Math.PI * st.area) / (st.perim * st.perim) : 1,
-        panden: [], footprint: 0, adressen: 0, vboOpp: 0, doelen: new Set(), signalen: new Set(), adresVoorbeeld: '',
+        panden: [], pandInfo: [], footprint: 0, adressen: 0, vboOpp: 0, nonResM2: 0, resM2: 0, maxVboPerPand: 0,
+        doelen: new Set(), signalen: new Set(), adresVoorbeeld: '',
       });
     });
     const lookup = buildIndex(percelen);
@@ -323,7 +375,10 @@ async function runAnalysis() {
       const r = c && lookup(c);
       if (!r) return;
       r.panden.push(p);
-      r.footprint += geomStats(f.geometry).area;
+      const area = geomStats(f.geometry).area;
+      r.footprint += area;
+      r.pandInfo.push({ id: p.identificatie, area });
+      r.maxVboPerPand = Math.max(r.maxVboPerPand, p.aantal_verblijfsobjecten || 0);
       if (SIGNAAL_STATUS[p.status]) r.signalen.add(SIGNAAL_STATUS[p.status]);
     });
     vbo.features.forEach((f) => {
@@ -333,10 +388,16 @@ async function runAnalysis() {
       if (!r) return;
       r.adressen++;
       r.vboOpp += p.oppervlakte || 0;
+      if (/woonfunctie/.test(p.gebruiksdoel || '')) r.resM2 += p.oppervlakte || 0;
+      else r.nonResM2 += p.oppervlakte || 0;
       (p.gebruiksdoel || '').split(',').map((d) => d.trim()).filter(Boolean).forEach((d) => r.doelen.add(d));
       if (SIGNAAL_STATUS[p.status]) r.signalen.add(SIGNAAL_STATUS[p.status]);
       if (!r.adresVoorbeeld) r.adresVoorbeeld = adresVan(p);
     });
+
+    $('#an-status').textContent = 'Buurtcijfers en monumenten ophalen…';
+    await fetchContext(bb, percelen, lookup);
+    AN.filters = s;
 
     percelen.forEach((r) => {
       const jaren = r.panden.map((p) => p.bouwjaar).filter((j) => j && j > 1000 && j < 2100);
@@ -359,45 +420,6 @@ async function runAnalysis() {
   }
 }
 
-// ---------- Score ----------
-function scoreParcel(r) {
-  const why = [];
-  let s = 0;
-  const add = (p, t) => { s += p; why.push(t); };
-  if (r.opp >= 5000) add(20, 'zeer groot perceel');
-  else if (r.opp >= 1500) add(14, 'groot perceel');
-  else if (r.opp >= 600) add(7, 'ruim perceel');
-
-  if (!r.panden.length) {
-    if (r.opp >= 200) add(18, 'onbebouwd');
-  } else if (r.graad < 0.2) add(18, `lage bebouwingsgraad (${Math.round(r.graad * 100)}%)`);
-  else if (r.graad < 0.4) add(10, `beperkte bebouwingsgraad (${Math.round(r.graad * 100)}%)`);
-
-  if (r.bouwjaarMin) {
-    if (r.bouwjaarMin < 1945) add(4, `oud pand (${r.bouwjaarMin}, let op monumentwaarde)`);
-    else if (r.bouwjaarMin < 1980) add(12, `pand uit ${r.bouwjaarMin}`);
-    else if (r.bouwjaarMin < 1995) add(6, `pand uit ${r.bouwjaarMin}`);
-  }
-
-  const nonRes = ['winkelfunctie', 'kantoorfunctie', 'industriefunctie', 'overige gebruiksfunctie'];
-  if (r.doelen.size && !r.doelen.has('woonfunctie') && [...r.doelen].some((d) => nonRes.includes(d))) {
-    add(16, `geen wonen (${[...r.doelen].join(', ')}): transformatiekans`);
-  } else if (r.panden.length && !r.adressen) add(6, 'bebouwd zonder adres (schuur/loods?)');
-
-  if (r.adressen && r.opp / r.adressen > 750) add(10, `veel grond per adres (${fmtNum(r.opp / r.adressen)} m²)`);
-
-  if (r.signalen.size) add(r.signalen.has('sloopvergunning verleend') || r.signalen.has('pand buiten gebruik') ? 22 : 10, [...r.signalen].join(', '));
-
-  if (r.compact < 0.12 && r.opp > 300) { s *= 0.3; why.push('langgerekt: mogelijk weg/water/spoor'); }
-  if (r.opp > 50000) { s *= 0.6; why.push('>5 ha: vaak openbare ruimte of gemeentegrond'); }
-  if (r.bestemming && /verkeer|water|groen|natuur|bos|spoor|agrarisch met waarden/i.test(r.bestemming.split(' (+')[0])) {
-    s *= 0.3; why.push('bestemming beperkt ontwikkeling');
-  }
-  r.score = Math.min(100, Math.round(s));
-  r.why = why;
-  if (typeof dsoScore === 'function') dsoScore(r); // extra signalen uit DSO-plandata (dso.js)
-}
-
 // ---------- Resultaten ----------
 const scoreColor = (s) => (s >= 60 ? '#c92a2a' : s >= 40 ? '#e8590c' : s >= 20 ? '#f59f00' : '#868e96');
 
@@ -407,7 +429,9 @@ function renderResults() {
   const bq = $('#f-bestemming').value.trim().toLowerCase();
   let res = AN.all.filter((r) => passes(r, s));
   if (bq) res = res.filter((r) => (r.bestemming || '').toLowerCase().includes(bq));
-  res.sort((a, b) => b.score - a.score || b.opp - a.opp);
+  const sortKey = s['f-sort'] || 'score';
+  res.sort((a, b) => (sortKey === 'opbrengst' ? (b.opbrengst || 0) - (a.opbrengst || 0)
+    : sortKey === 'woningen' ? b.pot.totaal - a.pot.totaal : 0) || b.score - a.score || b.opp - a.opp);
   AN.results = res;
 
   AN.layer.clearLayers();
@@ -425,7 +449,10 @@ function renderResults() {
   $('#an-list').innerHTML = shown.map((r, i) => `
     <li data-i="${i}">
       <div class="res-head"><span class="badge" style="background:${scoreColor(r.score)}">${r.score}</span>
-        <strong>${esc(r.aanduiding)}</strong> <span class="muted">${fmtNum(r.opp)} m²</span></div>
+        <strong>${esc(r.aanduiding)}</strong> <span class="muted">${fmtNum(r.opp)} m²</span>
+        <span class="pot">±${r.pot.totaal} won.${r.opbrengst ? ' · ' + fmtEuro(r.opbrengst) : ''}</span></div>
+      <div class="deel">${[['F', r.deel.fys, 'fysiek'], ['J', r.deel.jur, 'juridisch'], ['M', r.deel.markt, 'markt'], ['V', r.deel.verw, 'verwerving']]
+        .map(([k, v, t]) => `<span title="${t}"><i style="width:${v}%;background:${scoreColor(v)}"></i>${k} ${v}</span>`).join('')}</div>
       <div class="muted">${esc(r.adresVoorbeeld || (r.panden.length ? 'bebouwd, geen adres' : 'onbebouwd'))}
         ${r.adressen > 1 ? ` (+${r.adressen - 1})` : ''}</div>
       <div class="muted">bebouwd ${Math.round(r.graad * 100)}%${r.bouwjaarMin ? ` · bouwjaar ${r.bouwjaarMin}${r.bouwjaarMax !== r.bouwjaarMin ? '–' + r.bouwjaarMax : ''}` : ''}
@@ -437,6 +464,8 @@ function renderResults() {
         r.dso.planInOntwikkeling ? 'plan in ontwikkeling' : '', r.dso.vergunningen ? `${r.dso.vergunningen} vergunning(en)` : '',
       ].filter(Boolean).map(esc).join(' · ') || 'geen maatvoering gevonden'}</div>` : ''}
       ${r.dso?.fout ? `<div class="muted">plandata: ${esc(r.dso.fout)}</div>` : ''}
+      ${r.d3 && !r.d3.fout ? `<div class="muted">3D: ${r.d3.hoogte} m, ±${r.d3.lagen} lagen${r.d3.platDak ? ', plat dak' : ''}</div>` : ''}
+      ${r.monument ? `<div class="muted">rijksmonument: <a href="${esc(r.monument)}" target="_blank" rel="noopener">register</a></div>` : ''}
       <div class="why">${r.why.map(esc).join(' · ')}</div>
     </li>`).join('') + (res.length > 300 ? `<li class="muted">… ${res.length - 300} meer (zie export)</li>` : '');
   $('#an-list').querySelectorAll('li[data-i]').forEach((li) => {
@@ -449,33 +478,17 @@ function renderResults() {
   });
 }
 
-async function fetchPlans() {
-  const todo = AN.results.slice(0, 100).filter((r) => !AN.plans.has(r.id));
-  $('#an-plan').disabled = true;
-  let done = 0;
-  const worker = async () => {
-    while (todo.length) {
-      const r = todo.shift();
-      try {
-        const feats = await fetchBestemming(L.latLng(r.c[1], r.c[0]));
-        const enkel = feats.filter((f) => f.id.startsWith('enkelbestemming')).map((f) => f.properties.naam);
-        const dubbel = feats.filter((f) => f.id.startsWith('dubbelbestemming')).map((f) => f.properties.naam);
-        r.bestemming = [...new Set(enkel)].join(', ') + (dubbel.length ? ` (+ ${[...new Set(dubbel)].join(', ')})` : '') || 'geen Wro-plan gevonden';
-      } catch { r.bestemming = 'niet opgehaald'; }
-      AN.plans.set(r.id, r.bestemming);
-      $('#an-status').textContent = `Bestemming ophalen… ${++done}`;
-    }
-  };
-  await Promise.all(Array.from({ length: 6 }, worker));
-  AN.all.forEach((r) => { if (r.bestemming) scoreParcel(r); });
-  $('#an-plan').disabled = false;
-  renderResults();
-}
-
 // ---------- Export ----------
 function rowOf(r) {
   return {
-    perceel: r.aanduiding, perceel_id: r.id, score: r.score, oppervlakte_m2: r.opp,
+    perceel: r.aanduiding, perceel_id: r.id, score: r.score,
+    score_fysiek: r.deel.fys, score_juridisch: r.deel.jur, score_markt: r.deel.markt, score_verwerving: r.deel.verw,
+    woningen_totaal: r.pot.totaal, woningen_transformatie: r.pot.transf, woningen_optoppen: r.pot.optop, woningen_inbreiding: r.pot.inbr,
+    opbrengst_indicatief_eur: r.opbrengst ? Math.round(r.opbrengst) : '', uitsluiting: r.uitsluiting || '',
+    m2_niet_wonen: r.nonResM2, m2_wonen: r.resM2, max_adressen_per_pand: r.maxVboPerPand,
+    hoogte_m: r.d3?.hoogte ?? '', bouwlagen: r.d3?.lagen ?? '', rijksmonument: r.monument || '', beschermd_gezicht: r.gezicht || '',
+    buurt: r.buurt?.naam || '', buurt_woningwaarde_k: r.buurt?.woningwaarde ?? '', stedelijkheid: r.buurt?.stedelijkheid ?? '',
+    oppervlakte_m2: r.opp,
     bebouwd_m2: Math.round(r.footprint), bebouwingsgraad_pct: Math.round(r.graad * 100),
     panden: r.panden.length, bouwjaar_oudste: r.bouwjaarMin ?? '', bouwjaar_jongste: r.bouwjaarMax ?? '',
     adressen: r.adressen, vbo_oppervlakte_m2: r.vboOpp, gebruiksdoelen: [...r.doelen].join('; '),

@@ -27,24 +27,34 @@ Of zet de bestanden op een statische host (GitHub Pages, Netlify, enz.).
 | GPS-locatie, deellink (`#lat,lon,zoom`) | browser |
 | Favorieten met notitie, export als GeoJSON; perceel downloaden als GeoJSON | localStorage |
 
-## Gebiedsanalyse: (her)ontwikkelkansen (knop 🏗)
+## Gebiedsanalyse: kansrijkheid (knop 🏗)
 
-Haalt alle percelen, panden en verblijfsobjecten op in het kaartbeeld (zoom ≥ 15) of in een getekend gebied
-(maximaal 8000 objecten per bron), koppelt ze per perceel en filtert:
+Gericht op kleinschalige ontwikkeling (standaard 2–10 woningen) via **transformatie**, **optoppen** en
+**inbreiding**. *Analyseer* haalt alle percelen, panden en adressen in het kaartbeeld (zoom ≥ 15) of een getekend
+gebied op, plus CBS-buurtcijfers en rijksmonumenten/beschermde gezichten. *Verdiepen top 60* haalt voor de beste
+60 ook gebouwhoogte en bouwlagen (3D BAG), bestemming (PDOK) en, met API-sleutels, DSO-plandata op.
 
-- perceeloppervlakte min/max; langgerekte percelen (wegen, sloten, spoor) uitsluiten
-- onbebouwd / bebouwd, maximale bebouwingsgraad, minimale grond per adres
-- bouwjaar van het oudste pand (vóór / na), aantal adressen
-- gebruiksdoel: bevat één van / alleen / geen van (bijv. "geen woonfunctie" voor transformatie)
-- BAG-signalen: pand of verblijfsobject buiten gebruik, sloopvergunning, bouwvergunning, verbouwing
-- minimale ontwikkelscore (0–100)
-- bestemming (Wro-plan) ophalen voor de top 100, daarna filteren op tekst (bijv. "bedrijf")
+**Woningpotentie per perceel**
+- transformatie: m² niet-wonen (BAG) ÷ 65 m² per woning
+- optoppen (na verdiepen): extra lagen × footprint × 0,8 ÷ 65. Extra lagen volgen uit de toegestane bouwhoogte
+  (DSO) min de huidige hoogte (3D BAG). Zonder plandata: +1 laag bij 1–2 lagen met plat dak in een stedelijke buurt (aanname).
+- inbreiding: onbebouwde kavel of vrije grond ÷ 110–220 m² per woning, afhankelijk van de stedelijkheid. Niet bij stroken
+  smaller dan 12 m; in landelijk gebied alleen kleine onbebouwde kavels.
 
-Filters werken direct op de opgehaalde gegevens. Resultaten worden op de kaart gekleurd naar score,
-gesorteerd weergegeven met de redenen voor de score, en zijn te exporteren als CSV (Excel) of GeoJSON.
+**Vier deelscores (0–100), met instelbare weging**
+- *Fysiek*: hoe goed de potentie past bij de gezochte omvang
+- *Juridisch*: bestemming (wonen/gemengd +, kernwinkelgebied 0, agrarisch −), rijksmonument, beschermd gezicht,
+  karakteristiek; met DSO: plan in ontwikkeling, vergunningen, bebouwingsruimte, bouwvlak
+- *Markt*: gemiddelde woningwaarde van de buurt (CBS), stedelijkheid, afstand tot station en supermarkt
+- *Verwerving*: adressen per pand (1 = waarschijnlijk één eigenaar, >10 = VvE), leegstand (BAG "buiten gebruik"),
+  bouwjaar 1950–1985 +, recent gebouwd −, eigenaar al bezig (vergunning/bouw gestart) −, bewoond woonhuis −
 
-De score is een zeef, geen oordeel. Ze houdt geen rekening met eigendom, erfpacht, monumentstatus, milieu,
-geluid of de markt. Heel grote percelen (>5 ha) en percelen met bestemming verkeer, water of groen krijgen minder punten.
+Uitgesloten: langgerekte percelen (wegen, sloten), > 5 ha, bestemming verkeer/water/groen/natuur; rijksmonumenten
+optioneel. Per perceel staan woningpotentie, een indicatieve bruto verkoopopbrengst (woningen × buurtwaarde × 0,8)
+en de redenen achter de score. Sorteren kan op score, opbrengst of aantal woningen; export als CSV of GeoJSON
+met alle deelscores.
+
+Niet meegenomen: eigendom, bodem, geluid, parkeren, stikstof en bouwkosten. Gebruik de score als zeef, niet als oordeel.
 
 ## Omgevingswet / DSO-koppeling (API-sleutels nodig)
 
@@ -56,9 +66,7 @@ developer.omgevingswet.overheid.nl, inclusief de aparte sleutel voor Informatieh
   - plannen in ontwikkeling;
   - omgevingsplan-onderwerpen (activiteiten, gebiedsaanwijzingen, omgevingsnormen);
   - omgevingsvergunningen op het perceel en ontwerpregelingen.
-- **In de gebiedsanalyse:** knop *Plandata DSO (top 50)*. Haalt dit op voor de beste resultaten, voegt het toe aan
-  score en export (punten voor: plan in ontwikkeling, vergunningen, toegestane bebouwing ruim boven de huidige,
-  bouwhoogte ≥ 12 m).
+- **In de gebiedsanalyse:** wordt meegenomen bij *Verdiepen top 60* (juridische score en optoppen).
 
 Sleutels worden alleen in de browser opgeslagen (localStorage). Zet je de app publiek online, gebruik dan de
 proxy in `proxy/` zodat de sleutels op een server staan.
@@ -78,6 +86,7 @@ Gebruikte API's: *Ruimtelijke plannen opvragen v4* en *Omgevingsdocumenten prese
 - `index.html`: opmaak
 - `styles.css`: stijl, inclusief mobiele layout en donker thema
 - `app.js`: kaart, zoeken, perceelinfo, meten, favorieten
-- `search.js`: gebiedsanalyse en score
+- `search.js`: gebiedsanalyse (ophalen, filters, resultaten)
+- `kansen.js`: kansrijkheidsmodel (woningpotentie, deelscores, CBS, monumenten, 3D BAG)
 - `dso.js`: koppeling met de Omgevingswet-API's
 - `proxy/`: optionele Cloudflare Worker die de API-sleutels server-side toevoegt

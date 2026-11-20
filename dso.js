@@ -250,19 +250,6 @@ async function dsoEnrich(results, onProgress) {
   await Promise.all(Array.from({ length: 4 }, worker));
 }
 
-// Score-uitbreiding: signalen uit plannen. Wordt aangeroepen na scoreParcel in search.js.
-function dsoScore(r) {
-  const d = r.dso;
-  if (!d || d.fout) return;
-  let extra = 0;
-  if (d.planInOntwikkeling) { extra += 12; r.why.push('plan in ontwikkeling'); }
-  if (d.vergunningen) { extra += 6; r.why.push(`${d.vergunningen} omgevingsvergunning(en)`); }
-  // Ruimte binnen het bestemmingsplan: toegestaan bebouwingspercentage ruim boven het huidige.
-  if (d.bebouwingspct && d.bebouwingspct - r.graad * 100 >= 25) { extra += 10; r.why.push(`plan staat ${d.bebouwingspct}% bebouwing toe (nu ${Math.round(r.graad * 100)}%)`); }
-  if (d.bouwhoogte && d.bouwhoogte >= 12) { extra += 6; r.why.push(`bouwhoogte tot ${d.bouwhoogte} m`); }
-  r.score = Math.min(100, r.score + extra);
-}
-
 // ---------- Instellingen ----------
 (function buildSettings() {
   const sec = document.createElement('div');
@@ -290,28 +277,6 @@ function dsoScore(r) {
     if (rpEnabled()) res.push(await rpPost('/plannen/_zoek?pageSize=1', p).then(() => 'Ruimtelijke plannen: OK', (e) => `Ruimtelijke plannen: ${e.message}`));
     if (presEnabled()) res.push(await presPost('/onderwerpen/_zoek', { geometrie: geomToRd(p) }).then(() => 'Omgevingsdocumenten: OK', (e) => `Omgevingsdocumenten: ${e.message}`));
     $('#dso-status').textContent = res.join(' · ') || 'Geen sleutels ingevuld.';
-    updateDsoButton();
   };
 })();
 
-// Knop in de gebiedsanalyse
-(function analyseButton() {
-  const btn = document.createElement('button');
-  btn.id = 'an-dso';
-  btn.textContent = 'Plandata DSO (top 50)';
-  btn.title = 'Maatvoering, bouwvlak, plannen in ontwikkeling en vergunningen ophalen';
-  $('#an-result-tools').insertBefore(btn, $('#an-csv'));
-  btn.onclick = async () => {
-    if (!dsoEnabled()) return alert('Voeg eerst je DSO-API-sleutels toe onder ☰ Kaartlagen.');
-    btn.disabled = true;
-    try {
-      await dsoEnrich(AN.results.slice(0, 50), (n) => { $('#an-status').textContent = `Plandata ophalen… ${n}`; });
-      AN.plans = AN.plans || new Map();
-      AN.all.forEach((r) => { if (r.dso) { scoreParcel(r); if (r.bestemming) AN.plans.set(r.id, r.bestemming); } });
-    } catch (e) { alert(e.message); }
-    btn.disabled = false;
-    renderResults();
-  };
-})();
-function updateDsoButton() { const b = $('#an-dso'); if (b) b.hidden = !dsoEnabled(); }
-updateDsoButton();
