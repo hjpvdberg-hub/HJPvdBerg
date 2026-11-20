@@ -10,6 +10,7 @@
 const DSO = {
   rp: 'https://ruimte.omgevingswet.overheid.nl/ruimtelijke-plannen/api/opvragen/v4',
   pres: 'https://service.omgevingswet.overheid.nl/publiek/omgevingsdocumenten/api/presenteren/v8',
+  presPre: 'https://service.pre.omgevingswet.overheid.nl/publiek/omgevingsdocumenten/api/presenteren/v8',
   rdCrs: 'http://www.opengis.net/def/crs/EPSG/0/28992',
 };
 const dsoCfg = () => store.get('dso', { rpKey: '', dsoKey: '', proxy: '' });
@@ -35,9 +36,9 @@ function geomToRd(geom) {
 
 // ---------- HTTP ----------
 class DsoError extends Error {}
-async function dsoPost(api, path, body, headers = {}) {
+async function dsoPost(api, path, body, headers = {}, baseOverride = null) {
   const c = dsoCfg();
-  const base = c.proxy ? `${c.proxy.replace(/\/$/, '')}/${api}` : DSO[api];
+  const base = baseOverride || (c.proxy ? `${c.proxy.replace(/\/$/, '')}/${api}` : DSO[api]);
   const key = api === 'rp' ? c.rpKey : c.dsoKey;
   const h = { 'Content-Type': 'application/json', Accept: 'application/hal+json, application/json', ...headers };
   if (!c.proxy) {
@@ -275,7 +276,19 @@ async function dsoEnrich(results, onProgress) {
     const p = { type: 'Point', coordinates: [5.38763, 52.15616] }; // Amersfoort
     const res = [];
     if (rpEnabled()) res.push(await rpPost('/plannen/_zoek?pageSize=1', p).then(() => 'Ruimtelijke plannen: OK', (e) => `Ruimtelijke plannen: ${e.message}`));
-    if (presEnabled()) res.push(await presPost('/onderwerpen/_zoek', { geometrie: geomToRd(p) }).then(() => 'Omgevingsdocumenten: OK', (e) => `Omgevingsdocumenten: ${e.message}`));
+    if (presEnabled()) {
+      const body = { geometrie: geomToRd(p) };
+      let msg = await presPost('/onderwerpen/_zoek', body).then(() => 'Omgevingsdocumenten: OK', () => null);
+      if (!msg && !dsoCfg().proxy) {
+        // Diagnose: de API geeft bij een geweigerde sleutel geen CORS-header, dus de browser ziet alleen
+        // "geen verbinding". Werkt dezelfde sleutel op pre-productie, dan is het een pre-productiesleutel.
+        const pre = await dsoPost('pres', '/onderwerpen/_zoek', body, { 'Content-Crs': DSO.rdCrs }, DSO.presPre).then(() => true, () => false);
+        msg = pre
+          ? 'Omgevingsdocumenten: je sleutel werkt alleen op de pre-productieomgeving (testdata). Vraag een sleutel voor productie aan.'
+          : 'Omgevingsdocumenten: sleutel geweigerd of nog niet actief (de API meldt dat in de browser als "geen verbinding"). Controleer de sleutel en de e-mail van de aanvraag, of gebruik de proxy om de echte foutmelding te zien.';
+      }
+      res.push(msg || 'Omgevingsdocumenten: proxy gaf een fout');
+    }
     $('#dso-status').textContent = res.join(' · ') || 'Geen sleutels ingevuld.';
   };
 })();

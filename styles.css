@@ -97,3 +97,28 @@ details { margin-top: 10px; }
 .deel { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin: 4px 0 2px; }
 .deel span { position: relative; font-size: 11px; padding: 1px 4px; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
 .deel i { position: absolute; left: 0; top: 0; bottom: 0; opacity: .25; }
+
+/* Beoordeling en haalbaarheidstoets */
+.scorecard { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 6px 0; }
+.sheet.wide-sheet { width: 560px; }
+#toets-body { padding: 4px 14px 16px; }
+#toets-body h4 { margin: 16px 0 4px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--accent); }
+#toets-body table { width: 100%; border-collapse: collapse; font-size: 13px; }
+#toets-body td, #toets-body th { padding: 4px 6px 4px 0; vertical-align: top; border-bottom: 1px solid var(--line); text-align: left; }
+#toets-body td:first-child { color: var(--muted); width: 32%; }
+#toets-body table.scen td:first-child, #toets-body table.compact td:first-child { color: inherit; width: auto; }
+#toets-body table.scen td:not(:first-child), #toets-body table.scen th:not(:first-child) { text-align: right; white-space: nowrap; }
+#toets-body a { color: var(--accent); }
+.lvl { display: inline-block; padding: 0 6px; border-radius: 4px; font-size: 12px; font-weight: 600; color: #fff; white-space: nowrap; }
+.lvl.groen { background: #2f9e44; } .lvl.oranje { background: #e8590c; } .lvl.rood { background: #c92a2a; } .lvl.grijs { background: #868e96; }
+.pos { color: #2f9e44; font-weight: 600; } .neg { color: #c92a2a; font-weight: 600; }
+.reken label { font-size: 12px; color: var(--muted); }
+.sheet-head span { display: flex; gap: 6px; }
+@media (max-width: 640px) { .sheet.wide-sheet { width: auto; max-height: 75%; } }
+@media print {
+  body * { visibility: hidden; }
+  #toets, #toets * { visibility: visible; }
+  #toets { position: static; width: auto; max-height: none; box-shadow: none; border: 0; }
+  #toets .sheet-head button, #toets details { display: none; }
+}
+@media (min-width: 641px) { #sel-bar { left: auto; right: 60px; transform: none; } }

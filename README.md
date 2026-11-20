@@ -56,6 +56,25 @@ met alle deelscores.
 
 Niet meegenomen: eigendom, bodem, geluid, parkeren, stikstof en bouwkosten. Gebruik de score als zeef, niet als oordeel.
 
+## Beoordeling per kavel en haalbaarheidstoets
+
+- **Klik op een kavel:** het infopaneel toont direct de kansscore, de deelscores, de geschatte woningen en de redenen.
+  Dat werkt ook zonder gebiedsanalyse.
+- **Selectie (knop ▣):** klik aangrenzende kavels aan (of gebruik "Voeg toe aan selectie" in het infopaneel) en kies
+  *Haalbaarheid toetsen*. Het rapport bevat:
+  - locatie: samengevoegde oppervlakte, bebouwing, adressen, gebruik, bouwjaren, buurt;
+  - planologie: bestemming, dubbelbestemmingen, monument, beschermd gezicht, maatvoering en plannen in
+    ontwikkeling (met DSO-sleutel), erfpacht-indicatie;
+  - bouwhoogte en schaduw: huidige hoogte, hoogtes in de omgeving (3D BAG), toegestane hoogte, en een vereenvoudigde
+    schaduwberekening (21 maart, 21 juni, 21 december) met het aantal panden in de schaduw, getekend op de kaart;
+  - omgeving en risico's: bodem (indicatie uit gebruik), archeologie (dubbelbestemming), fundering (RVO),
+    geluid (afstand tot drukke wegen en spoor), industrie (geregistreerde installaties), stikstof (afstand
+    Natura 2000), groen binnen 150 m (BGT), parkeernorm (indicatie), plus links naar Bodemloket, Atlas
+    Leefomgeving, Klimaateffectatlas en de capaciteitskaart van het stroomnet;
+  - scenario's: transformatie, optoppen, combinatie, inbreiding en sloop-nieuwbouw, elk met woningen, opbrengst,
+    kosten, marge en maximale aankoopprijs. Alle uitgangspunten zijn aan te passen en worden onthouden.
+  - Afdrukken of opslaan als PDF via de knop *Afdrukken*.
+
 ## Omgevingswet / DSO-koppeling (API-sleutels nodig)
 
 Vul onder ☰ Kaartlagen → *API-sleutels (DSO)* je gratis sleutels in (aan te vragen via
@@ -89,4 +108,5 @@ Gebruikte API's: *Ruimtelijke plannen opvragen v4* en *Omgevingsdocumenten prese
 - `search.js`: gebiedsanalyse (ophalen, filters, resultaten)
 - `kansen.js`: kansrijkheidsmodel (woningpotentie, deelscores, CBS, monumenten, 3D BAG)
 - `dso.js`: koppeling met de Omgevingswet-API's
+- `toets.js`: beoordeling per kavel, selectie en haalbaarheidstoets
 - `proxy/`: optionele Cloudflare Worker die de API-sleutels server-side toevoegt

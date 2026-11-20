@@ -200,7 +200,8 @@ async function pick(item) {
 // ---------- Identificeren (klik op kaart) ----------
 let mode = null; // null | 'line' | 'area' | 'draw' (gebied tekenen, zie search.js)
 map.on('click', (e) => {
-  if (mode === 'draw') addDrawPoint(e.latlng);
+  if (mode === 'select') selectAt(e.latlng); // kavels selecteren (toets.js)
+  else if (mode === 'draw') addDrawPoint(e.latlng);
   else if (mode) addMeasurePoint(e.latlng);
   else identify(e.latlng);
 });
