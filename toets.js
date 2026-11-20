@@ -240,7 +240,7 @@ function schaduwen(footGeom, h, neighbours) {
 // ---------- Rekensom ----------
 const REKEN_DEFAULTS = {
   verkoopM2: null, gboPerWoning: 65, gboBvo: 0.8, aankoopNietWonenM2: 1200, aankoopGrondM2: 300, aankoopKostenPct: 10.4,
-  bouwTransfM2: 1500, bouwOptopM2: 2100, bouwNieuwM2: 2100, sloopM2: 90, bijkomendPct: 20, onvoorzienPct: 5,
+  bouwTransfM2: 1500, bouwOptopM2: 2100, bouwNieuwM2: 2100, sloopM2: 90, bijkomendPct: 10, onvoorzienPct: 5, btwPct: 21,
   parkeerPlek: 15000, margePct: 15,
 };
 const PARKEERNORM = { 1: 0.5, 2: 0.8, 3: 1.1, 4: 1.3, 5: 1.5 };
@@ -268,7 +268,12 @@ function scenarios(r, inp) {
   // Bestaande woningen die blijven staan, leveren hun waarde weer op (alleen niet bij sloop-nieuwbouw).
   const add = (naam, woningen, bvo, bouwM2, sloop, aankoopBedrag, toelichting, behoud = true, extraWaarde = 0) => {
     if (woningen < 1) return;
-    const opbrengst = woningen * inp.gboPerWoning * verkoopM2 + (behoud && aankoopBedrag ? woningenBestaand * woningwaarde : 0) + extraWaarde;
+    // Verkoopprijs is VON incl. btw; de ontwikkelaar houdt de opbrengst excl. btw over. Bestaand vastgoed dat
+    // blijft (woningen, niet-wonen) wordt zonder btw meegeteld.
+    const vonIncl = woningen * inp.gboPerWoning * verkoopM2;
+    const nieuwExcl = vonIncl / (1 + inp.btwPct / 100);
+    const bestaand = (behoud && aankoopBedrag ? woningenBestaand * woningwaarde : 0) + extraWaarde;
+    const opbrengst = nieuwExcl + bestaand;
     const plekken = Math.max(0, Math.ceil(woningen * norm) - Math.floor(vrij / 25));
     const bouw = bvo * bouwM2 + sloop;
     const bijkomend = bouw * (inp.bijkomendPct + inp.onvoorzienPct) / 100;
@@ -278,7 +283,7 @@ function scenarios(r, inp) {
     const kosten = kostenExcl + aankoopTot;
     const marge = opbrengst - kosten;
     const maxAankoop = (opbrengst / (1 + inp.margePct / 100) - kostenExcl) / (1 + inp.aankoopKostenPct / 100);
-    out.push({ naam, woningen, bvo, opbrengst, aankoop: aankoopTot, bouw, bijkomend, parkeren, plekken, kosten, marge, margePct: opbrengst ? (marge / kosten) * 100 : 0, maxAankoop, toelichting });
+    out.push({ naam, woningen, bvo, opbrengst, vonIncl, bestaand, aankoop: aankoopTot, bouw, bijkomend, parkeren, plekken, kosten, marge, margePct: opbrengst ? (marge / kosten) * 100 : 0, maxAankoop, toelichting });
   };
   // Transformatie
   if (r.nonResM2 >= 120) {
@@ -471,7 +476,7 @@ function renderToets(r) {
   const rows = (arr) => `<table>${arr.map(([k, v, x]) => `<tr><td>${esc(k)}</td><td>${v}</td>${x !== undefined ? `<td class="muted">${x}</td>` : ''}</tr>`).join('')}</table>`;
   const scenRows = sc.list.map((s) => `<tr>
       <td><strong>${esc(s.naam)}</strong><br><span class="muted">${esc(s.toelichting)}</span></td>
-      <td>${s.woningen}</td><td>${fmtEuro(s.opbrengst)}</td><td>${fmtEuro(s.kosten)}</td>
+      <td>${s.woningen}</td><td>${fmtEuro(s.vonIncl)}<br><span class="muted">${fmtEuro(s.opbrengst)}</span></td><td>${fmtEuro(s.kosten)}</td>
       <td class="${s.marge >= 0 ? 'pos' : 'neg'}">${fmtEuro(Math.abs(s.marge)).replace('€', s.marge < 0 ? '−€' : '€')}<br><span class="muted">${fmtNum(s.margePct, 1)}%</span></td>
       <td>${s.maxAankoop > 0 ? fmtEuro(s.maxAankoop) : '<span class="neg">n.v.t.</span>'}</td></tr>`).join('');
 
@@ -531,22 +536,22 @@ function renderToets(r) {
     </div>
 
     <h4>Scenario's en rekensom</h4>
-    ${sc.list.length ? `<table class="scen"><tr><th>Scenario</th><th>Won.</th><th>Opbrengst</th><th>Kosten</th><th>Marge</th><th>Max. aankoop*</th></tr>${scenRows}</table>
-    <p class="muted">* Maximale aankoopprijs (excl. aankoopkosten) bij ${inp.margePct}% marge. Opbrengst = nieuwe woningen × ${inp.gboPerWoning} m² × €${fmtNum(sc.verkoopM2)}/m², plus de waarde van bestaande woningen die blijven staan.
+    ${sc.list.length ? `<table class="scen"><tr><th>Scenario</th><th>Won.</th><th>Verkoop VON incl. btw<br><span class="muted">opbrengst excl. btw</span></th><th>Kosten excl. btw</th><th>Marge</th><th>Max. aankoop*</th></tr>${scenRows}</table>
+    <p class="muted">* Maximale aankoopprijs (excl. aankoopkosten) bij ${inp.margePct}% marge. Verkoop = nieuwe woningen × ${inp.gboPerWoning} m² × €${fmtNum(sc.verkoopM2)}/m² VON incl. ${inp.btwPct}% btw. Opbrengst (excl. btw) = verkoop ÷ ${fmtNum(1 + inp.btwPct / 100, 2)}, plus de waarde van bestaand vastgoed dat blijft staan. Alle kosten zijn excl. btw; marge en maximale aankoop zijn berekend op de opbrengst excl. btw.
     Aankoop is geschat: niet-wonen × €${fmtNum(inp.aankoopNietWonenM2)}/m², bestaande woningen × buurtwaarde, onbebouwd × €${fmtNum(inp.aankoopGrondM2)}/m² (totaal €${fmtNum(sc.aankoop)}).</p>`
     : '<p class="muted">Geen scenario met minimaal 1 woning gevonden.</p>'}
     <details class="card"><summary><strong>Uitgangspunten aanpassen</strong></summary>
       <div class="grid2 reken">
-        ${[['verkoopM2', 'Verkoopprijs €/m² GBO (leeg = uit buurt)'], ['gboPerWoning', 'm² GBO per woning'], ['gboBvo', 'Verhouding GBO/BVO'],
+        ${[['verkoopM2', 'Verkoopprijs €/m² GBO, VON incl. btw (leeg = uit buurt)'], ['gboPerWoning', 'm² GBO per woning'], ['gboBvo', 'Verhouding GBO/BVO'],
           ['aankoopNietWonenM2', 'Aankoop niet-wonen €/m²'], ['aankoopGrondM2', 'Aankoop grond €/m²'], ['aankoopKostenPct', 'Aankoopkosten/OVB %'],
-          ['bouwTransfM2', 'Bouwkosten transformatie €/m² BVO'], ['bouwOptopM2', 'Bouwkosten optoppen (staalframe) €/m² BVO'], ['bouwNieuwM2', 'Bouwkosten nieuwbouw €/m² BVO'],
-          ['sloopM2', 'Sloop €/m² footprint'], ['bijkomendPct', 'Bijkomende kosten %'], ['onvoorzienPct', 'Onvoorzien %'],
+          ['bouwTransfM2', 'Bouwkosten transformatie €/m² BVO excl. btw'], ['bouwOptopM2', 'Bouwkosten optoppen (staalframe) €/m² BVO excl. btw'], ['bouwNieuwM2', 'Bouwkosten nieuwbouw €/m² BVO excl. btw'],
+          ['sloopM2', 'Sloop €/m² footprint'], ['bijkomendPct', 'Bijkomende kosten % (over bouw)'], ['onvoorzienPct', 'Onvoorzien % (over bouw)'], ['btwPct', 'Btw % op verkoop'],
           ['parkeerPlek', 'Parkeren (afkoop) €/plek'], ['margePct', 'Gewenste marge %']]
           .map(([k, l]) => `<label>${l}<input type="number" step="any" data-reken="${k}" value="${inp[k] ?? ''}" placeholder="${k === 'verkoopM2' ? fmtNum(sc.verkoopM2) : ''}"></label>`).join('')}
       </div>
       <div class="row"><button id="reken-reset">Standaardwaarden</button></div>
     </details>
-    <p class="muted">Indicatief. Niet meegenomen: eigendomssituatie, huurcontracten, bodemsanering, funderingsherstel, netaansluiting, BTW-effecten, financieringslasten en fasering.</p>`;
+    <p class="muted">Indicatief. Niet meegenomen: eigendomssituatie, huurcontracten, bodemsanering, funderingsherstel, netaansluiting, financieringslasten en fasering. Btw op bouwkosten is niet meegenomen (aftrekbaar bij btw-belaste verkoop).</p>`;
 
   $('#toets-body').querySelectorAll('[data-reken]').forEach((el) => el.addEventListener('change', () => {
     const cur = store.get('reken', {});
