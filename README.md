@@ -75,6 +75,21 @@ Niet meegenomen: eigendom, bodem, geluid, parkeren, stikstof en bouwkosten. Gebr
     kosten, marge en maximale aankoopprijs. Alle uitgangspunten zijn aan te passen en worden onthouden.
   - Afdrukken of opslaan als PDF via de knop *Afdrukken*.
 
+## Referentieprojecten (regio Gemert-Bakel)
+
+`referenties.json` bevat 1.206 kleinschalige projecten (2–20 woningen) die in de afgelopen ±5 jaar binnen 20 km
+van Gemert-Bakel zijn gerealiseerd, afgeleid uit de BAG: 111 appartementengebouwen, 537 grondgebonden
+projecten, 463 transformaties en 95 woningsplitsingen. Brokstukken van grote nieuwbouwwijken zijn uitgesloten.
+Methode en verversen: zie `tools/referenties.md`.
+
+Gebruik in de app (alleen binnen het referentiegebied):
+- **Kaartlaag** "Gerealiseerde projecten" (☰), gekleurd per type, met adres, woningen, m² en bouwlagen.
+- **Precedent in de score:** vergelijkbare projecten van het type dat bij het perceel past. Juridisch +8 à +12 bij
+  ≤ 300 m, +4 bij ≤ 1 km, −5 als er binnen 2 km niets vergelijkbaars is; markt +5 bij 3 of meer binnen 1 km.
+- **Kental woninggrootte:** de mediaan van gerealiseerde projecten binnen 5 km vervangt de vaste 65 m²
+  (regio: transformatie 62 m², nieuwbouwappartementen 77 m²).
+- **Haalbaarheidstoets:** de 10 dichtstbijzijnde referentieprojecten en de kentallen van de regio.
+
 ## Omgevingswet / DSO-koppeling (API-sleutels nodig)
 
 Vul onder ☰ Kaartlagen → *API-sleutels (DSO)* je gratis sleutels in (aan te vragen via
@@ -109,4 +124,6 @@ Gebruikte API's: *Ruimtelijke plannen opvragen v4* en *Omgevingsdocumenten prese
 - `kansen.js`: kansrijkheidsmodel (woningpotentie, deelscores, CBS, monumenten, 3D BAG)
 - `dso.js`: koppeling met de Omgevingswet-API's
 - `toets.js`: beoordeling per kavel, selectie en haalbaarheidstoets
+- `referenties.js` + `referenties.json`: gerealiseerde projecten als precedent en kental
+- `tools/`: scripts om de referentiedata te maken
 - `proxy/`: optionele Cloudflare Worker die de API-sleutels server-side toevoegt

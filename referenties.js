@@ -37,18 +37,27 @@ function refGbo(c, kind) {
   return m && m >= 30 && m <= 150 ? m : null;
 }
 
-// Precedent: aantal vergelijkbare projecten dichtbij. Geeft punten terug voor juridisch en markt.
+// Precedent: vergelijkbare projecten dichtbij, alleen van het type dat bij dit perceel past
+// (transformatie bij niet-wonen, appartementen bij optoppen, nieuwbouw bij inbreiding).
+// Dichtbij (≤ 300 m) telt zwaar: daar heeft de gemeente kennelijk iets vergelijkbaars toegestaan.
 function refPrecedent(r, why) {
   if (!inRefGebied(r.c)) return { jur: 0, markt: 0 };
-  const strat = AN.filters?.strat || { transf: true, optop: true, inbr: true };
-  const types = [...new Set(Object.entries(strat).filter(([, on]) => on).flatMap(([k]) => REF_STRAT[k]))];
+  const pot = r.pot || {};
+  const types = [...new Set([
+    ...(pot.transf ? REF_STRAT.transf : []), ...(pot.optop ? REF_STRAT.optop : []), ...(pot.inbr ? REF_STRAT.inbr : []),
+  ])];
+  if (!types.length) return { jur: 0, markt: 0 };
+  const n300 = refNear(r.c, 300, types).length;
   const n1 = refNear(r.c, 1000, types).length;
   const n2 = refNear(r.c, 2000, types).length;
-  r.refN1 = n1; r.refN2 = n2;
-  if (n1) why.push(`${n1} vergelijkbaar project(en) gerealiseerd ≤ 1 km`);
-  else if (n2) why.push(`${n2} vergelijkbaar project(en) ≤ 2 km`);
-  else why.push('geen vergelijkbare projecten ≤ 2 km gerealiseerd');
-  return { jur: Math.min(15, n1 * 5) - (n2 ? 0 : 5), markt: Math.min(10, n2 * 2) };
+  r.refN1 = n1; r.refN300 = n300;
+  const soort = types.includes('transformatie') ? 'transformatie/splitsing' : 'nieuwbouw';
+  let jur = 0, markt = 0;
+  if (n300) { jur = n300 >= 2 ? 12 : 8; why.push(`${n300} vergelijkbare project${n300 > 1 ? "en" : ""} (${soort}) gerealiseerd ≤ 300 m`); }
+  else if (n1) { jur = 4; why.push(`${n1} vergelijkbare project(en) (${soort}) ≤ 1 km`); }
+  else if (!n2) { jur = -5; why.push(`geen vergelijkbare projecten (${soort}) ≤ 2 km gerealiseerd`); }
+  if (n1 >= 3) markt = 5;
+  return { jur, markt };
 }
 
 // ---------- Kaartlaag ----------
