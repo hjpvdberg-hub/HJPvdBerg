@@ -28,7 +28,13 @@ def fetch_all(url):
 def _fetch_all(url):
     out = []
     while url:
-        d = get(url); out += d.get('features', [])
+        try:
+            d = get(url, tries=3)
+        except RuntimeError:
+            # PDOK geeft een time-out op diepe pagina's met filter; kleinere pagina's lukken wel.
+            url = url.replace('limit=1000', 'limit=200')
+            d = get(url)
+        out += d.get('features', [])
         url = next((l['href'] for l in d.get('links', []) if l['rel'] == 'next'), None)
     return out
 def tiles(n):
