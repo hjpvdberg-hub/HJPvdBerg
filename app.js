@@ -142,7 +142,7 @@ const favLayer = L.layerGroup().addTo(map);
 
 // ---------- Panelen ----------
 function togglePanel(id) {
-  ['#layers', '#favs'].forEach((p) => { if (p !== id) $(p).hidden = true; });
+  ['#layers', '#favs', '#analyse'].forEach((p) => { if (p !== id) $(p).hidden = true; });
   $(id).hidden = !$(id).hidden;
 }
 $('#btn-layers').onclick = () => togglePanel('#layers');
@@ -198,8 +198,12 @@ async function pick(item) {
 }
 
 // ---------- Identificeren (klik op kaart) ----------
-let mode = null; // null | 'line' | 'area'
-map.on('click', (e) => { if (mode) addMeasurePoint(e.latlng); else identify(e.latlng); });
+let mode = null; // null | 'line' | 'area' | 'draw' (gebied tekenen, zie search.js)
+map.on('click', (e) => {
+  if (mode === 'draw') addDrawPoint(e.latlng);
+  else if (mode) addMeasurePoint(e.latlng);
+  else identify(e.latlng);
+});
 
 let identifySeq = 0;
 async function identify(latlng) {

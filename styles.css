@@ -71,3 +71,23 @@ button.on { background: var(--accent); color: #fff; border-color: var(--accent);
   .panel { left: 8px; right: 8px; width: auto; }
   .measure { bottom: 12px; width: calc(100% - 24px); }
 }
+
+/* Gebiedsanalyse */
+.panel.wide { width: 360px; }
+.panel input[type=number], .panel input[type=search], .panel select { width: 100%; padding: 5px 7px; margin-top: 2px;
+  border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); font: inherit; }
+.panel input[type=range] { width: 100%; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
+.grid2 label { font-size: 12px; color: var(--muted); }
+.checks { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+button.primary { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+button:disabled { opacity: .5; cursor: wait; }
+#an-result-tools input { flex: 1 1 100%; }
+.results { list-style: none; margin: 8px 0 0; padding: 0; }
+.results li { border-top: 1px solid var(--line); padding: 7px 2px; cursor: pointer; font-size: 13px; }
+.results li:hover { background: var(--accent-soft); }
+.res-head { display: flex; gap: 6px; align-items: center; }
+.badge { color: #fff; border-radius: 5px; padding: 0 6px; font-weight: 700; font-size: 12px; min-width: 28px; text-align: center; }
+.why { font-size: 12px; margin-top: 2px; }
+details { margin-top: 10px; }
+@media (max-width: 640px) { .panel.wide { width: auto; } .tools { gap: 2px; } .tools button { padding: 6px 6px; } }
