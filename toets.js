@@ -240,7 +240,7 @@ function schaduwen(footGeom, h, neighbours) {
 // ---------- Rekensom ----------
 const REKEN_DEFAULTS = {
   verkoopM2: null, gboPerWoning: 65, gboBvo: 0.8, aankoopNietWonenM2: 1200, aankoopGrondM2: 300, aankoopKostenPct: 10.4,
-  bouwTransfM2: 1700, bouwOptopM2: 2600, bouwNieuwM2: 2300, sloopM2: 90, bijkomendPct: 20, onvoorzienPct: 5,
+  bouwTransfM2: 1500, bouwOptopM2: 2100, bouwNieuwM2: 2100, sloopM2: 90, bijkomendPct: 20, onvoorzienPct: 5,
   parkeerPlek: 15000, margePct: 15,
 };
 const PARKEERNORM = { 1: 0.5, 2: 0.8, 3: 1.1, 4: 1.3, 5: 1.5 };
@@ -539,7 +539,7 @@ function renderToets(r) {
       <div class="grid2 reken">
         ${[['verkoopM2', 'Verkoopprijs €/m² GBO (leeg = uit buurt)'], ['gboPerWoning', 'm² GBO per woning'], ['gboBvo', 'Verhouding GBO/BVO'],
           ['aankoopNietWonenM2', 'Aankoop niet-wonen €/m²'], ['aankoopGrondM2', 'Aankoop grond €/m²'], ['aankoopKostenPct', 'Aankoopkosten/OVB %'],
-          ['bouwTransfM2', 'Bouwkosten transformatie €/m² BVO'], ['bouwOptopM2', 'Bouwkosten optoppen €/m² BVO'], ['bouwNieuwM2', 'Bouwkosten nieuwbouw €/m² BVO'],
+          ['bouwTransfM2', 'Bouwkosten transformatie €/m² BVO'], ['bouwOptopM2', 'Bouwkosten optoppen (staalframe) €/m² BVO'], ['bouwNieuwM2', 'Bouwkosten nieuwbouw €/m² BVO'],
           ['sloopM2', 'Sloop €/m² footprint'], ['bijkomendPct', 'Bijkomende kosten %'], ['onvoorzienPct', 'Onvoorzien %'],
           ['parkeerPlek', 'Parkeren (afkoop) €/plek'], ['margePct', 'Gewenste marge %']]
           .map(([k, l]) => `<label>${l}<input type="number" step="any" data-reken="${k}" value="${inp[k] ?? ''}" placeholder="${k === 'verkoopM2' ? fmtNum(sc.verkoopM2) : ''}"></label>`).join('')}
