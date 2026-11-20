@@ -395,6 +395,7 @@ function scoreParcel(r) {
   }
   r.score = Math.min(100, Math.round(s));
   r.why = why;
+  if (typeof dsoScore === 'function') dsoScore(r); // extra signalen uit DSO-plandata (dso.js)
 }
 
 // ---------- Resultaten ----------
@@ -430,6 +431,12 @@ function renderResults() {
       <div class="muted">bebouwd ${Math.round(r.graad * 100)}%${r.bouwjaarMin ? ` · bouwjaar ${r.bouwjaarMin}${r.bouwjaarMax !== r.bouwjaarMin ? '–' + r.bouwjaarMax : ''}` : ''}
         ${r.doelen.size ? ' · ' + esc([...r.doelen].map((d) => d.replace('functie', '')).join(', ')) : ''}</div>
       ${r.bestemming ? `<div class="muted">bestemming: ${esc(r.bestemming)}</div>` : ''}
+      ${r.dso && !r.dso.fout ? `<div class="muted">plan: ${[
+        r.dso.bouwhoogte ? `bouwhoogte ${r.dso.bouwhoogte} m` : '', r.dso.goothoogte ? `goothoogte ${r.dso.goothoogte} m` : '',
+        r.dso.bebouwingspct ? `bebouwing max ${r.dso.bebouwingspct}%` : '', r.dso.inBouwvlak === false ? 'buiten bouwvlak' : '',
+        r.dso.planInOntwikkeling ? 'plan in ontwikkeling' : '', r.dso.vergunningen ? `${r.dso.vergunningen} vergunning(en)` : '',
+      ].filter(Boolean).map(esc).join(' · ') || 'geen maatvoering gevonden'}</div>` : ''}
+      ${r.dso?.fout ? `<div class="muted">plandata: ${esc(r.dso.fout)}</div>` : ''}
       <div class="why">${r.why.map(esc).join(' · ')}</div>
     </li>`).join('') + (res.length > 300 ? `<li class="muted">… ${res.length - 300} meer (zie export)</li>` : '');
   $('#an-list').querySelectorAll('li[data-i]').forEach((li) => {
@@ -473,6 +480,9 @@ function rowOf(r) {
     panden: r.panden.length, bouwjaar_oudste: r.bouwjaarMin ?? '', bouwjaar_jongste: r.bouwjaarMax ?? '',
     adressen: r.adressen, vbo_oppervlakte_m2: r.vboOpp, gebruiksdoelen: [...r.doelen].join('; '),
     signalen: [...r.signalen].join('; '), bestemming: r.bestemming || '', voorbeeldadres: r.adresVoorbeeld,
+    plan_bouwhoogte_m: r.dso?.bouwhoogte ?? '', plan_goothoogte_m: r.dso?.goothoogte ?? '',
+    plan_bebouwingspct: r.dso?.bebouwingspct ?? '', plan_in_bouwvlak: r.dso?.inBouwvlak == null ? '' : (r.dso.inBouwvlak ? 'ja' : 'nee'),
+    plan_in_ontwikkeling: r.dso?.planInOntwikkeling ?? '', omgevingsvergunningen: r.dso?.vergunningen ?? '',
     redenen: r.why.join('; '), lat: r.c[1].toFixed(6), lon: r.c[0].toFixed(6),
   };
 }
