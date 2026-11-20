@@ -40,7 +40,8 @@ async function dsoPost(api, path, body, headers = {}, baseOverride = null) {
   const c = dsoCfg();
   const base = baseOverride || (c.proxy ? `${c.proxy.replace(/\/$/, '')}/${api}` : DSO[api]);
   const key = api === 'rp' ? c.rpKey : c.dsoKey;
-  const h = { 'Content-Type': 'application/json', Accept: 'application/hal+json, application/json', ...headers };
+  // Alleen headers die de API in zijn CORS-lijst toestaat; de Presenteren-API noemt 'Accept' daar niet.
+  const h = { 'Content-Type': 'application/json', ...(api === 'rp' ? { Accept: 'application/hal+json, application/json' } : {}), ...headers };
   if (!c.proxy) {
     if (!key) throw new DsoError(api === 'rp' ? 'Geen sleutel voor Ruimtelijke plannen' : 'Geen DSO-sleutel');
     h['x-api-key'] = key;
